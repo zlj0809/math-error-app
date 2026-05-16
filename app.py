@@ -1,7 +1,10 @@
 """考研数学错题归纳 — 首页仪表盘 & 盲盒复习"""
 
 import streamlit as st
+import datetime
+
 from database import init_db, get_stats, get_module_due_counts, add_review
+from database import export_db_bytes, import_db
 from review import draw_blindbox
 from utils import inject_katex, render_problem_detail, check_password
 
@@ -10,6 +13,34 @@ st.set_page_config(page_title="错题盲盒", page_icon="🎲",
 inject_katex()
 check_password()
 init_db()
+
+# ── Sidebar: Backup / Restore ──
+with st.sidebar:
+    st.markdown("### 数据备份")
+    st.caption("定期下载备份，推送代码前先备份！")
+
+    db_bytes = export_db_bytes()
+    today = datetime.date.today().isoformat()
+    st.download_button(
+        label="下载备份",
+        data=db_bytes,
+        file_name=f"math_errors_backup_{today}.db",
+        mime="application/octet-stream",
+        use_container_width=True
+    )
+
+    st.markdown("---")
+    st.markdown("### 恢复备份")
+    uploaded = st.file_uploader("上传备份文件", type=["db"], label_visibility="collapsed")
+    if uploaded:
+        if st.button("确认恢复", type="primary", use_container_width=True):
+            if import_db(uploaded):
+                st.success("恢复成功！页面将自动刷新。")
+                import time
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("恢复失败，请检查文件是否正确。")
 
 st.title("🎲 考研数学错题归纳")
 

@@ -293,3 +293,26 @@ def get_module_due_counts():
     """, (today,)).fetchall()
     conn.close()
     return {r["module"]: r["cnt"] for r in rows}
+
+
+def export_db_bytes() -> bytes:
+    with open(DB_PATH, "rb") as f:
+        return f.read()
+
+
+def import_db(uploaded_file) -> bool:
+    backup_path = DB_PATH + ".bak"
+    try:
+        if os.path.exists(DB_PATH):
+            os.rename(DB_PATH, backup_path)
+        with open(DB_PATH, "wb") as f:
+            f.write(uploaded_file.getvalue())
+        if os.path.exists(backup_path):
+            os.remove(backup_path)
+        return True
+    except Exception:
+        if os.path.exists(backup_path):
+            if os.path.exists(DB_PATH):
+                os.remove(DB_PATH)
+            os.rename(backup_path, DB_PATH)
+        return False
