@@ -3,7 +3,7 @@
 import streamlit as st
 from database import (
     init_db, get_sources, search_problems, get_problem,
-    update_problem, delete_problem
+    update_problem, delete_problem, get_chapters, add_chapter
 )
 from utils import inject_katex, render_problem_detail, check_password
 
@@ -28,7 +28,11 @@ with st.expander("🔎 筛选条件", expanded=True):
         module_filter = st.selectbox(
             "学科", options=["全部", "高等数学", "线性代数", "概率统计"], key="f_module"
         )
-        chapter_filter = st.text_input("章节关键词", key="f_chapter")
+        chapters = get_chapters()
+        chapter_options = {c["name"]: c["name"] for c in chapters}
+        chapter_filter = st.selectbox(
+            "章节", options=["全部"] + list(chapter_options.keys()), key="f_chapter"
+        )
     with f2:
         error_type_filter = st.selectbox(
             "错误类型",
@@ -44,7 +48,7 @@ with st.expander("🔎 筛选条件", expanded=True):
 # ── Results ──
 src_id = source_map.get(source_filter) if source_filter != "全部" else None
 mod = module_filter if module_filter != "全部" else None
-ch = chapter_filter if chapter_filter else None
+ch = chapter_filter if chapter_filter != "全部" else None
 et = error_type_filter if error_type_filter != "全部" else None
 st_ = status_filter if status_filter != "全部" else None
 kw = keyword if keyword else None
@@ -85,8 +89,16 @@ else:
                     index=["高等数学", "线性代数", "概率统计"].index(prob["module"]),
                     key=f"em_{prob['id']}"
                 )
-                new_chapter = st.text_input(
-                    "章节", value=prob["chapter"], key=f"ec_{prob['id']}"
+                edit_chapter_options = list(chapter_options.keys())
+                # Ensure the current chapter appears in the selectbox
+                if prob["chapter"] and prob["chapter"] not in edit_chapter_options:
+                    edit_chapter_options = [prob["chapter"]] + edit_chapter_options
+                edit_chapter_idx = (edit_chapter_options.index(prob["chapter"])
+                                    if prob["chapter"] in edit_chapter_options else 0)
+                new_chapter = st.selectbox(
+                    "章节", options=edit_chapter_options,
+                    index=edit_chapter_idx,
+                    key=f"ec_{prob['id']}"
                 )
                 src_names = list(source_map.keys())
                 default_src_idx = src_names.index(prob["source_name"]) if prob["source_name"] in src_names else 0

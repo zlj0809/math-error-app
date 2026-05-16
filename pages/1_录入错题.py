@@ -3,7 +3,7 @@
 import streamlit as st
 from database import (
     init_db, get_sources, add_source, add_problem,
-    get_all_knowledge_points
+    get_all_knowledge_points, get_chapters, add_chapter
 )
 from utils import inject_katex, save_uploaded_image, check_password
 
@@ -41,11 +41,20 @@ with c2:
     )
 
 with c3:
-    chapter = st.text_input(
+    chapters = get_chapters()
+    chapter_options = {c["name"]: c["name"] for c in chapters}
+    chapter_choice = st.selectbox(
         "具体章节 *",
-        placeholder="如：一元积分学-定积分的应用",
-        key="chapter"
+        options=["+ 新建章节"] + list(chapter_options.keys()),
+        key="chapter_select"
     )
+    if chapter_choice == "+ 新建章节":
+        new_chapter = st.text_input("输入新章节名称", key="new_chapter")
+        chapter = new_chapter if new_chapter else None
+        if new_chapter:
+            add_chapter(new_chapter)
+    else:
+        chapter = chapter_choice
 
 # ── Step 2: 题干（拍照为主） ──
 st.markdown("### 📷 题干")
@@ -140,7 +149,7 @@ if st.button("💾 保存错题", type="primary", use_container_width=True):
     errors = []
     if not question_text.strip() and not question_image:
         errors.append("请至少拍照上传题干，或输入题干文字")
-    if not chapter.strip():
+    if not chapter or not chapter.strip():
         errors.append("章节不能为空")
     if source_id is None:
         errors.append("请选择或输入来源")
@@ -170,5 +179,7 @@ if st.button("💾 保存错题", type="primary", use_container_width=True):
                   "core_knowledge_points", "key_insight",
                   "question_image_upload", "solution_image_upload"):
             st.session_state[k] = None if k.endswith("_upload") else ""
-        st.session_state.chapter = ""
+        st.session_state.new_chapter = ""
+        chapters_list = get_chapters()
+        st.session_state.chapter_select = chapters_list[0]["name"] if chapters_list else "+ 新建章节"
         st.rerun()

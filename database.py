@@ -23,6 +23,11 @@ def init_db():
             name TEXT NOT NULL UNIQUE
         );
 
+        CREATE TABLE IF NOT EXISTS chapters (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE
+        );
+
         CREATE TABLE IF NOT EXISTS problems (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             source_id INTEGER REFERENCES sources(id),
@@ -64,6 +69,20 @@ def init_db():
         except sqlite3.OperationalError:
             pass  # column already exists
 
+    # Seed default chapters
+    default_chapters = [
+        "第一章 函数 极限 连续",
+        "第二章 一元函数微分学",
+        "第三章 一元函数积分学",
+        "第四章 常微分方程",
+        "第五章 多元函数微分学",
+        "第六章 二重积分",
+    ]
+    for ch in default_chapters:
+        conn.execute(
+            "INSERT OR IGNORE INTO chapters (name) VALUES (?)", (ch,)
+        )
+
     conn.commit()
     conn.close()
 
@@ -85,6 +104,28 @@ def add_source(name):
         return cur.lastrowid
     except sqlite3.IntegrityError:
         row = conn.execute("SELECT id FROM sources WHERE name=?", (name.strip(),)).fetchone()
+        return row["id"]
+    finally:
+        conn.close()
+
+
+# ── Chapters ──
+
+def get_chapters():
+    conn = get_conn()
+    rows = conn.execute("SELECT * FROM chapters ORDER BY id").fetchall()
+    conn.close()
+    return rows
+
+
+def add_chapter(name):
+    conn = get_conn()
+    try:
+        cur = conn.execute("INSERT INTO chapters (name) VALUES (?)", (name.strip(),))
+        conn.commit()
+        return cur.lastrowid
+    except sqlite3.IntegrityError:
+        row = conn.execute("SELECT id FROM chapters WHERE name=?", (name.strip(),)).fetchone()
         return row["id"]
     finally:
         conn.close()
