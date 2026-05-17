@@ -104,9 +104,10 @@ def _show_image(rel_path):
 def save_uploaded_image(uploaded_file) -> str:
     img_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "images")
     os.makedirs(img_dir, exist_ok=True)
-    ext = os.path.splitext(uploaded_file.name)[1] or ".png"
-    fname = f"{uuid.uuid4().hex}{ext}"
+    fname = f"{uuid.uuid4().hex}.png"
     fpath = os.path.join(img_dir, fname)
     img = Image.open(uploaded_file)
-    img.save(fpath)
+    if img.mode not in ("RGB", "RGBA"):
+        img = img.convert("RGB")
+    img.save(fpath, "PNG")
     return os.path.join("data", "images", fname)
