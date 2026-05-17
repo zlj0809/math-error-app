@@ -2,10 +2,12 @@
 
 import streamlit as st
 from database import (
-    init_db, get_sources, add_source, add_problem,
-    get_all_knowledge_points, get_chapters, add_chapter
+    init_db, get_sources, add_source, delete_source, add_problem,
+    get_all_knowledge_points, get_chapters, add_chapter, delete_chapter
 )
-from utils import inject_katex, save_uploaded_image, check_password
+from utils import (
+    inject_katex, save_uploaded_image, check_password, handwriting_component
+)
 
 st.set_page_config(page_title="录入错题", page_icon="✍️",
                    layout="centered", initial_sidebar_state="collapsed")
@@ -17,7 +19,45 @@ if "_form_counter" not in st.session_state:
     st.session_state._form_counter = 0
 fc = st.session_state._form_counter
 
+# Track handwriting paths across re-runs so canvas can restore
+for hw_key in ("q", "s", "w"):
+    sk = f"_hw_{hw_key}_{fc}"
+    if sk not in st.session_state:
+        st.session_state[sk] = ""
+
 st.title("✍️ 录入新错题")
+
+# ── Management: Sources & Chapters ──
+with st.expander("管理来源与章节", expanded=False):
+    c_src, c_ch = st.columns(2)
+    with c_src:
+        st.markdown("**来源**")
+        sources = get_sources()
+        if sources:
+            for s in sources:
+                c_name, c_btn = st.columns([3, 1])
+                with c_name:
+                    st.write(s["name"])
+                with c_btn:
+                    if st.button("🗑️", key=f"delsrc_{s['id']}"):
+                        delete_source(s["id"])
+                        st.rerun()
+        else:
+            st.caption("暂无来源")
+    with c_ch:
+        st.markdown("**章节**")
+        chapters = get_chapters()
+        if chapters:
+            for ch in chapters:
+                c_name, c_btn = st.columns([3, 1])
+                with c_name:
+                    st.write(ch["name"])
+                with c_btn:
+                    if st.button("🗑️", key=f"delch_{ch['id']}"):
+                        delete_chapter(ch["id"])
+                        st.rerun()
+        else:
+            st.caption("暂无章节")
 
 # ── Step 1: 分类定位 ──
 st.markdown("### 📂 分类定位")
@@ -79,6 +119,15 @@ question_text = st.text_area(
     label_visibility="visible"
 )
 
+# Handwriting pad for question
+with st.expander("🖊️ 题干手写补充", expanded=False):
+    q_hw = handwriting_component(f"q_{fc}", "直接在下方手写",
+                                 st.session_state[f"_hw_q_{fc}"])
+    if q_hw and q_hw != "clear" and q_hw != st.session_state[f"_hw_q_{fc}"]:
+        st.session_state[f"_hw_q_{fc}"] = q_hw
+    elif q_hw == "clear":
+        st.session_state[f"_hw_q_{fc}"] = ""
+
 # ── Step 3: 正解（拍照为主） ──
 st.markdown("### ✅ 正确解法")
 solution_image = None
@@ -98,6 +147,14 @@ standard_solution = st.text_area(
     label_visibility="visible"
 )
 
+with st.expander("🖊️ 正解手写补充", expanded=False):
+    s_hw = handwriting_component(f"s_{fc}", "直接在下方手写",
+                                 st.session_state[f"_hw_s_{fc}"])
+    if s_hw and s_hw != "clear" and s_hw != st.session_state[f"_hw_s_{fc}"]:
+        st.session_state[f"_hw_s_{fc}"] = s_hw
+    elif s_hw == "clear":
+        st.session_state[f"_hw_s_{fc}"] = ""
+
 # ── Step 4: 我的错误解法 ──
 st.markdown("### ❌ 我当时的错误解法")
 st.caption("记录思维偏差是归纳的关键——当时你是怎么想的？")
@@ -108,6 +165,14 @@ my_wrong_solution = st.text_area(
     placeholder="写下你当时错误的思路...",
     label_visibility="collapsed"
 )
+
+with st.expander("🖊️ 错误解法手写补充", expanded=False):
+    w_hw = handwriting_component(f"w_{fc}", "直接在下方手写错误思路",
+                                 st.session_state[f"_hw_w_{fc}"])
+    if w_hw and w_hw != "clear" and w_hw != st.session_state[f"_hw_w_{fc}"]:
+        st.session_state[f"_hw_w_{fc}"] = w_hw
+    elif w_hw == "clear":
+        st.session_state[f"_hw_w_{fc}"] = ""
 
 # ── Step 5: 认知与归纳 ──
 st.markdown("### 🧠 认知与归纳")
@@ -176,6 +241,9 @@ if st.button("💾 保存错题", type="primary", use_container_width=True):
             "core_knowledge_points": core_knowledge_points,
             "key_insight": key_insight,
             "difficulty": difficulty,
+            "question_handwriting": "" if q_hw == "clear" else q_hw,
+            "solution_handwriting": "" if s_hw == "clear" else s_hw,
+            "wrong_solution_handwriting": "" if w_hw == "clear" else w_hw,
         }
         pid = add_problem(data)
         st.success(f"✅ 错题已保存（ID: {pid}），下次复习日期：明天")

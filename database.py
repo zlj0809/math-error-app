@@ -63,6 +63,9 @@ def init_db():
     for col, col_type in [
         ("question_image", "TEXT"),
         ("solution_image", "TEXT"),
+        ("question_handwriting", "TEXT"),
+        ("solution_handwriting", "TEXT"),
+        ("wrong_solution_handwriting", "TEXT"),
     ]:
         try:
             conn.execute(f"ALTER TABLE problems ADD COLUMN {col} {col_type}")
@@ -131,6 +134,20 @@ def add_chapter(name):
         conn.close()
 
 
+def delete_source(source_id: int):
+    conn = get_conn()
+    conn.execute("DELETE FROM sources WHERE id=?", (source_id,))
+    conn.commit()
+    conn.close()
+
+
+def delete_chapter(chapter_id: int):
+    conn = get_conn()
+    conn.execute("DELETE FROM chapters WHERE id=?", (chapter_id,))
+    conn.commit()
+    conn.close()
+
+
 # ── Problems ──
 
 REVIEW_INTERVALS = [1, 2, 4, 7, 15, 30]
@@ -148,8 +165,9 @@ def add_problem(data: dict) -> int:
         INSERT INTO problems (id, source_id, module, chapter, question_text,
             question_image, standard_solution, solution_image,
             my_wrong_solution, image_path, error_type,
-            core_knowledge_points, key_insight, difficulty, next_review_date)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            core_knowledge_points, key_insight, difficulty, next_review_date,
+            question_handwriting, solution_handwriting, wrong_solution_handwriting)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
         new_id, data["source_id"], data["module"], data["chapter"],
         data.get("question_text", ""), data.get("question_image", ""),
@@ -157,7 +175,10 @@ def add_problem(data: dict) -> int:
         data.get("my_wrong_solution", ""), data.get("image_path", ""),
         data["error_type"], data.get("core_knowledge_points", ""),
         data.get("key_insight", ""), data.get("difficulty", 3),
-        tomorrow
+        tomorrow,
+        data.get("question_handwriting", ""),
+        data.get("solution_handwriting", ""),
+        data.get("wrong_solution_handwriting", ""),
     ))
     conn.commit()
     conn.close()
@@ -171,6 +192,8 @@ def update_problem(problem_id: int, data: dict):
     for k in ["source_id", "module", "chapter", "question_text",
               "question_image", "standard_solution", "solution_image",
               "my_wrong_solution", "image_path",
+              "question_handwriting", "solution_handwriting",
+              "wrong_solution_handwriting",
               "error_type", "core_knowledge_points", "key_insight",
               "difficulty", "status"]:
         if k in data:
@@ -188,11 +211,15 @@ def update_problem(problem_id: int, data: dict):
 def delete_problem(problem_id: int):
     conn = get_conn()
     row = conn.execute(
-        "SELECT image_path, question_image, solution_image FROM problems WHERE id=?",
+        "SELECT image_path, question_image, solution_image,"
+        " question_handwriting, solution_handwriting, wrong_solution_handwriting"
+        " FROM problems WHERE id=?",
         (problem_id,)
     ).fetchone()
     if row:
-        for field in ("image_path", "question_image", "solution_image"):
+        for field in ("image_path", "question_image", "solution_image",
+                      "question_handwriting", "solution_handwriting",
+                      "wrong_solution_handwriting"):
             rel = row[field]
             if rel:
                 img_full = os.path.normpath(os.path.join(DB_DIR, rel))
