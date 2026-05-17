@@ -225,7 +225,7 @@ def handwriting_component(key: str, label: str, existing_path: str = "") -> str:
                 existing_data = f"data:image/png;base64,{base64.b64encode(f.read()).decode()}"
 
     html = HANDWRITING_PAD_HTML.replace("%%KEY%%", key).replace("%%DATA%%", existing_data)
-    result = st.components.v1.html(html, height=260, key=f"hwpad_{key}")
+    result = st.components.v1.html(html, height=260)
 
     if result is None:
         return ""
