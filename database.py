@@ -138,15 +138,20 @@ REVIEW_INTERVALS = [1, 2, 4, 7, 15, 30]
 
 def add_problem(data: dict) -> int:
     conn = get_conn()
+    # Find the smallest unused ID to fill gaps from deletions
+    used = {r[0] for r in conn.execute("SELECT id FROM problems ORDER BY id")}
+    new_id = 1
+    while new_id in used:
+        new_id += 1
     tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-    cur = conn.execute("""
-        INSERT INTO problems (source_id, module, chapter, question_text,
+    conn.execute("""
+        INSERT INTO problems (id, source_id, module, chapter, question_text,
             question_image, standard_solution, solution_image,
             my_wrong_solution, image_path, error_type,
             core_knowledge_points, key_insight, difficulty, next_review_date)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
-        data["source_id"], data["module"], data["chapter"],
+        new_id, data["source_id"], data["module"], data["chapter"],
         data.get("question_text", ""), data.get("question_image", ""),
         data.get("standard_solution", ""), data.get("solution_image", ""),
         data.get("my_wrong_solution", ""), data.get("image_path", ""),
@@ -155,9 +160,8 @@ def add_problem(data: dict) -> int:
         tomorrow
     ))
     conn.commit()
-    pid = cur.lastrowid
     conn.close()
-    return pid
+    return new_id
 
 
 def update_problem(problem_id: int, data: dict):
@@ -188,10 +192,11 @@ def delete_problem(problem_id: int):
         (problem_id,)
     ).fetchone()
     if row:
-        for field in ["image_path", "question_image", "solution_image"]:
-            if row[field]:
-                img_full = os.path.join(DB_DIR, row[field])
-                if os.path.exists(img_full):
+        for field in ("image_path", "question_image", "solution_image"):
+            rel = row[field]
+            if rel:
+                img_full = os.path.normpath(os.path.join(DB_DIR, rel))
+                if os.path.isfile(img_full):
                     os.remove(img_full)
     conn.execute("DELETE FROM reviews WHERE problem_id=?", (problem_id,))
     conn.execute("DELETE FROM problems WHERE id=?", (problem_id,))

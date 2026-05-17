@@ -96,8 +96,8 @@ def _show_image(rel_path):
     if not rel_path:
         return
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    img_full = os.path.join(base_dir, rel_path)
-    if os.path.exists(img_full):
+    img_full = os.path.normpath(os.path.join(base_dir, rel_path))
+    if os.path.isfile(img_full):
         st.image(Image.open(img_full), use_container_width=True)
 
 
