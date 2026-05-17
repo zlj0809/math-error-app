@@ -176,9 +176,8 @@ if st.button("💾 保存错题", type="primary", use_container_width=True):
         pid = add_problem(data)
         st.success(f"✅ 错题已保存（ID: {pid}），下次复习日期：明天")
         for k in ("question_text", "standard_solution", "my_wrong_solution",
-                  "core_knowledge_points", "key_insight",
-                  "question_image_upload", "solution_image_upload"):
-            st.session_state[k] = None if k.endswith("_upload") else ""
+                  "core_knowledge_points", "key_insight"):
+            st.session_state[k] = ""
         st.session_state.new_chapter = ""
         chapters_list = get_chapters()
         st.session_state.chapter_select = chapters_list[0]["name"] if chapters_list else "+ 新建章节"
